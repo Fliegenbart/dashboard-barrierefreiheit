@@ -98,6 +98,21 @@ export const api = {
     request<{ suggestion: string }>(`/issues/${issueId}/ai-suggestion`, {
       method: 'POST',
     }),
+
+  // Scans
+  scanWebsite: (url: string, name?: string) =>
+    request<ScanResponse>('/scans/website', {
+      method: 'POST',
+      body: JSON.stringify({ url, name }),
+    }),
+
+  rescanAsset: (assetId: string) =>
+    request<ScanResponse>(`/scans/asset/${assetId}`, {
+      method: 'POST',
+    }),
+
+  getScans: () =>
+    request<ScanHistoryItem[]>('/scans'),
 };
 
 // Types
@@ -189,6 +204,35 @@ export interface CreateAssetData {
   url?: string;
   department?: string;
   tags?: string[];
+}
+
+export interface ScanResponse {
+  asset: Asset;
+  scan: {
+    id: string;
+    score: number;
+    issueCount: number;
+    criticalCount: number;
+    majorCount: number;
+    minorCount: number;
+    duration: number;
+  };
+  issues: Issue[];
+}
+
+export interface ScanHistoryItem {
+  id: string;
+  asset_id: string;
+  scanned_at: string;
+  scan_type: string;
+  score: number;
+  total_issues: number;
+  critical_count: number;
+  major_count: number;
+  minor_count: number;
+  asset_name: string;
+  asset_type: string;
+  asset_url: string;
 }
 
 export default api;

@@ -5,6 +5,7 @@ import { initDatabase } from './db/index.js';
 import dashboardRoutes from './routes/dashboard.js';
 import assetsRoutes from './routes/assets.js';
 import issuesRoutes from './routes/issues.js';
+import scansRoutes from './routes/scans.js';
 
 // Initialize database
 initDatabase();
@@ -54,6 +55,7 @@ app.use((req, res, next) => {
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/assets', assetsRoutes);
 app.use('/api/issues', issuesRoutes);
+app.use('/api/scans', scansRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

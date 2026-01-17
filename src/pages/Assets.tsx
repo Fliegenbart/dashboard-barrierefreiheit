@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { api, type Asset } from '../api/client'
+import { Link, useNavigate } from 'react-router-dom'
+import { api, type Asset, type ScanResponse } from '../api/client'
+import { ScanModal } from '../components/ScanModal'
 
 type AssetType = Asset['type']
 type AssetStatus = Asset['status']
@@ -21,30 +22,39 @@ const statusLabels: Record<AssetStatus, { label: string; icon: string; colorClas
 }
 
 export function Assets() {
+  const navigate = useNavigate()
   const [assets, setAssets] = useState<Asset[]>([])
   const [filterType, setFilterType] = useState<string>('alle')
   const [filterStatus, setFilterStatus] = useState<string>('alle')
   const [sortBy, setSortBy] = useState<'name' | 'current_score' | 'last_scanned_at'>('name')
   const [loading, setLoading] = useState(true)
+  const [scanModalOpen, setScanModalOpen] = useState(false)
+
+  const loadAssets = async () => {
+    try {
+      const data = await api.getAssets({
+        type: filterType !== 'alle' ? filterType : undefined,
+        status: filterStatus !== 'alle' ? filterStatus : undefined,
+        sort: sortBy,
+        order: sortBy === 'current_score' ? 'desc' : 'asc'
+      })
+      setAssets(data)
+    } catch (err) {
+      console.error('Failed to load assets:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function loadAssets() {
-      try {
-        const data = await api.getAssets({
-          type: filterType !== 'alle' ? filterType : undefined,
-          status: filterStatus !== 'alle' ? filterStatus : undefined,
-          sort: sortBy,
-          order: sortBy === 'current_score' ? 'desc' : 'asc'
-        })
-        setAssets(data)
-      } catch (err) {
-        console.error('Failed to load assets:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
     loadAssets()
   }, [filterType, filterStatus, sortBy])
+
+  const handleScanComplete = (result: ScanResponse) => {
+    // Assets neu laden und zur Detail-Seite navigieren
+    loadAssets()
+    navigate(`/assets/${result.asset.id}`)
+  }
 
   const filteredAssets = assets
 
@@ -54,11 +64,18 @@ export function Assets() {
         <h2 className="text-2xl font-bold text-gray-900">Assets</h2>
         <button
           type="button"
+          onClick={() => setScanModalOpen(true)}
           className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
         >
-          + Neues Asset
+          + Website scannen
         </button>
       </div>
+
+      <ScanModal
+        isOpen={scanModalOpen}
+        onClose={() => setScanModalOpen(false)}
+        onScanComplete={handleScanComplete}
+      />
 
       {/* Filter */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
