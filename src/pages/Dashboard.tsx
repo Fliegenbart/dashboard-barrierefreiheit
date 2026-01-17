@@ -3,18 +3,43 @@ import { ScoreCard } from '../components/ScoreCard'
 import { AssetTypeTable } from '../components/AssetTypeTable'
 import { TopIssuesList } from '../components/TopIssuesList'
 import { TrendChart } from '../components/TrendChart'
-import { storageService } from '../services/storage'
-import type { DashboardStats, AssetsByType } from '../types'
+import { api } from '../api/client'
+import type { DashboardStats, AssetsByType } from '../api/client'
 
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [assetsByType, setAssetsByType] = useState<AssetsByType[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    storageService.initDemoData()
-    setStats(storageService.getDashboardStats())
-    setAssetsByType(storageService.getAssetsByType())
+    async function loadData() {
+      try {
+        const [statsData, typesData] = await Promise.all([
+          api.getDashboardStats(),
+          api.getAssetsByType()
+        ])
+        setStats(statsData)
+        setAssetsByType(typesData)
+        setError(null)
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err)
+        setError('Backend nicht erreichbar. Starte mit: cd backend && npm install && npm run db:init && npm run dev')
+      }
+    }
+    loadData()
   }, [])
+
+  if (error) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h2 className="text-lg font-semibold text-yellow-800 mb-2">Backend nicht verbunden</h2>
+        <p className="text-yellow-700 mb-4">{error}</p>
+        <pre className="bg-yellow-100 p-3 rounded text-sm text-yellow-900 overflow-x-auto">
+          cd backend && npm install && npm run db:init && npm run dev
+        </pre>
+      </div>
+    )
+  }
 
   if (!stats) {
     return (

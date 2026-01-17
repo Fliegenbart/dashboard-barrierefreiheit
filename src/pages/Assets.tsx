@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { storageService } from '../services/storage'
-import type { Asset, AssetType, AssetStatus } from '../types'
+import { api, type Asset } from '../api/client'
+
+type AssetType = Asset['type']
+type AssetStatus = Asset['status']
 
 const typeLabels: Record<AssetType, string> = {
   confluence: 'Confluence',
   pdf: 'PDF',
   pptx: 'PowerPoint',
   website: 'Webseite',
+  html: 'HTML',
 }
 
 const statusLabels: Record<AssetStatus, { label: string; icon: string; colorClass: string }> = {
@@ -21,28 +24,29 @@ export function Assets() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [filterType, setFilterType] = useState<string>('alle')
   const [filterStatus, setFilterStatus] = useState<string>('alle')
-  const [sortBy, setSortBy] = useState<'name' | 'score' | 'date'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'current_score' | 'last_scanned_at'>('name')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    storageService.initDemoData()
-    setAssets(storageService.getAssets())
-  }, [])
+    async function loadAssets() {
+      try {
+        const data = await api.getAssets({
+          type: filterType !== 'alle' ? filterType : undefined,
+          status: filterStatus !== 'alle' ? filterStatus : undefined,
+          sort: sortBy,
+          order: sortBy === 'current_score' ? 'desc' : 'asc'
+        })
+        setAssets(data)
+      } catch (err) {
+        console.error('Failed to load assets:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadAssets()
+  }, [filterType, filterStatus, sortBy])
 
-  // Filtern
-  let filteredAssets = assets
-  if (filterType !== 'alle') {
-    filteredAssets = filteredAssets.filter((a) => a.type === filterType)
-  }
-  if (filterStatus !== 'alle') {
-    filteredAssets = filteredAssets.filter((a) => a.status === filterStatus)
-  }
-
-  // Sortieren
-  filteredAssets = [...filteredAssets].sort((a, b) => {
-    if (sortBy === 'name') return a.name.localeCompare(b.name)
-    if (sortBy === 'score') return b.currentScore - a.currentScore
-    return new Date(b.lastScannedAt).getTime() - new Date(a.lastScannedAt).getTime()
-  })
+  const filteredAssets = assets
 
   return (
     <div className="space-y-6">
@@ -108,8 +112,8 @@ export function Assets() {
                 className="rounded-lg border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
               >
                 <option value="name">Name</option>
-                <option value="score">Score</option>
-                <option value="date">Letzter Scan</option>
+                <option value="current_score">Score</option>
+                <option value="last_scanned_at">Letzter Scan</option>
               </select>
             </div>
           </div>
@@ -163,14 +167,14 @@ export function Assets() {
                   <td className="py-3 px-4 text-center">
                     <span
                       className={`font-semibold ${
-                        asset.currentScore >= 80
+                        asset.current_score >= 80
                           ? 'text-success'
-                          : asset.currentScore >= 50
+                          : asset.current_score >= 50
                           ? 'text-warning'
                           : 'text-error'
                       }`}
                     >
-                      {asset.currentScore}%
+                      {asset.current_score}%
                     </span>
                   </td>
                   <td className="py-3 px-4 text-center">
@@ -182,7 +186,7 @@ export function Assets() {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right text-gray-500 text-sm">
-                    {new Date(asset.lastScannedAt).toLocaleDateString('de-DE')}
+                    {asset.last_scanned_at ? new Date(asset.last_scanned_at).toLocaleDateString('de-DE') : '-'}
                   </td>
                 </tr>
               )
